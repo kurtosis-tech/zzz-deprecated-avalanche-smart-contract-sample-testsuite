@@ -36,7 +36,7 @@ var StorageFuncSigs = map[string]string{
 }
 
 // StorageBin is the compiled bytecode used for deploying new contracts.
-var StorageBin = "0x6080604052348015600f57600080fd5b5060ab8061001e6000396000f3fe6080604052348015600f57600080fd5b506004361060325760003560e01c80632e64cec11460375780636057361d14604c575b600080fd5b60005460405190815260200160405180910390f35b605c6057366004605e565b600055565b005b600060208284031215606e578081fd5b503591905056fea2646970667358221220dcd77b9572f8c8d66b94957834fe3fb9fe5c8c8089b4968ba128fc82e0eab9e064736f6c63430008040033"
+var StorageBin = "0x608060405234801561001057600080fd5b5060ac8061001f6000396000f3fe6080604052348015600f57600080fd5b506004361060325760003560e01c80632e64cec11460375780636057361d14604f575b600080fd5b603d606b565b60408051918252519081900360200190f35b606960048036036020811015606357600080fd5b50356071565b005b60005490565b60005556fea2646970667358221220087388b751c95e2f846d7bb8204e9977c3ab4bec1c625a57a4f7500521d9d1c564736f6c63430007060033"
 
 // DeployStorage deploys a new Ethereum contract, binding an instance of Storage to it.
 func DeployStorage(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *Storage, error) {
@@ -160,7 +160,7 @@ func bindStorage(address common.Address, caller bind.ContractCaller, transactor 
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_Storage *StorageRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
+func (_Storage *StorageRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
 	return _Storage.Contract.StorageCaller.contract.Call(opts, result, method, params...)
 }
 
@@ -179,7 +179,7 @@ func (_Storage *StorageRaw) Transact(opts *bind.TransactOpts, method string, par
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_Storage *StorageCallerRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
+func (_Storage *StorageCallerRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
 	return _Storage.Contract.contract.Call(opts, result, method, params...)
 }
 
@@ -198,17 +198,12 @@ func (_Storage *StorageTransactorRaw) Transact(opts *bind.TransactOpts, method s
 //
 // Solidity: function retrieve() view returns(uint256)
 func (_Storage *StorageCaller) Retrieve(opts *bind.CallOpts) (*big.Int, error) {
-	var out []interface{}
-	err := _Storage.contract.Call(opts, &out, "retrieve")
-
-	if err != nil {
-		return *new(*big.Int), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-
-	return out0, err
-
+	var (
+		ret0 = new(*big.Int)
+	)
+	out := ret0
+	err := _Storage.contract.Call(opts, out, "retrieve")
+	return *ret0, err
 }
 
 // Retrieve is a free data retrieval call binding the contract method 0x2e64cec1.

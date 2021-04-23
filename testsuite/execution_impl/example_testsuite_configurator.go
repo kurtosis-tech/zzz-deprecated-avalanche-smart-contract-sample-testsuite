@@ -35,7 +35,7 @@ func (t ExampleTestsuiteConfigurator) SetLogLevel(logLevelStr string) error {
 
 func (t ExampleTestsuiteConfigurator) ParseParamsAndCreateSuite(paramsJsonStr string) (testsuite.TestSuite, error) {
 	paramsJsonBytes := []byte(paramsJsonStr)
-	var args ExampleTestsuiteArgs
+	var args SmartContractTestsuiteArgs
 	if err := json.Unmarshal(paramsJsonBytes, &args); err != nil {
 		return nil, stacktrace.Propagate(err, "An error occurred deserializing the testsuite params JSON")
 	}
@@ -44,16 +44,13 @@ func (t ExampleTestsuiteConfigurator) ParseParamsAndCreateSuite(paramsJsonStr st
 		return nil, stacktrace.Propagate(err, "An error occurred validating the deserialized testsuite params")
 	}
 
-	suite := testsuite_impl.NewExampleTestsuite(args.ApiServiceImage, args.DatastoreServiceImage, args.IsKurtosisCoreDevMode)
+	suite := testsuite_impl.NewSmartContractTestsuite(args.AvalancheImage)
 	return suite, nil
 }
 
-func validateArgs(args ExampleTestsuiteArgs) error {
-	if strings.TrimSpace(args.ApiServiceImage) == "" {
-		return stacktrace.NewError("API service image is empty")
-	}
-	if strings.TrimSpace(args.DatastoreServiceImage) == "" {
-		return stacktrace.NewError("Datastore service image is empty")
+func validateArgs(args SmartContractTestsuiteArgs) error {
+	if strings.TrimSpace(args.AvalancheImage) == "" {
+		return stacktrace.NewError("Avalanche image is empty")
 	}
 	return nil
 }

@@ -2,32 +2,38 @@ package smart_contract_test
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/kurtosis-tech/avalanche-smart-contract-sample-testsuite/smart_contracts/bindings"
 	"github.com/kurtosis-tech/kurtosis-libs/golang/lib/networks"
 	"github.com/kurtosis-tech/kurtosis-libs/golang/lib/services"
 	"github.com/kurtosis-tech/kurtosis-libs/golang/lib/testsuite"
-	"github.com/mieubrisse/avalanchego-kurtosis/kurtosis/avalanche/libs/builder/networkbuilder"
-	"github.com/mieubrisse/avalanchego-kurtosis/kurtosis/avalanche/libs/builder/topology"
-	"github.com/mieubrisse/avalanchego-kurtosis/kurtosis/avalanche/libs/constants"
-	"github.com/mieubrisse/avalanchego-kurtosis/kurtosis/avalanche/tests/testconstants"
-	"github.com/mieubrisse/avalanchego-kurtosis/kurtosis/kurtosis/networksavalanche"
+	"github.com/ava-labs/avalanchego-kurtosis/kurtosis/avalanche/libs/builder/networkbuilder"
+	"github.com/ava-labs/avalanchego-kurtosis/kurtosis/avalanche/libs/builder/topology"
+	"github.com/ava-labs/avalanchego-kurtosis/kurtosis/avalanche/libs/constants"
+	"github.com/ava-labs/avalanchego-kurtosis/kurtosis/avalanche/tests/testconstants"
+	"github.com/ava-labs/avalanchego-kurtosis/kurtosis/kurtosis/networksavalanche"
 	"github.com/palantir/stacktrace"
-	"github.com/status-im/keycard-go/hexutils"
+	"github.com/sirupsen/logrus"
+	"math/big"
 	"time"
 )
 
 const (
-	contractBinaryHex = "608060405234801561001057600080fd5b5061012f806100206000396000f3fe6080604052348015600f57600080fd5b506004361060325760003560e01c806360fe47b11460375780636d4ce63c14604f575b600080fd5b604d600480360381019060499190608f565b6069565b005b60556073565b6040516060919060c2565b60405180910390f35b8060008190555050565b60008054905090565b60008135905060898160e5565b92915050565b60006020828403121560a057600080fd5b600060ac84828501607c565b91505092915050565b60bc8160db565b82525050565b600060208201905060d5600083018460b5565b92"
-
-	bootstrapNodeServiceIdPrefix = "bootstrapNode-"
+	// TODO Get this from the node config somehow, rather than hardcoding it
+	nodeHttpPort = 9650
 )
-
-var definedNetwork =
 
 type SmartContractTest struct {
 	avalancheImage string
+	// TODO make this not a mutable variable that gets set in Setup
 	networkDefinition *networkbuilder.Network
+}
+
+func NewSmartContractTest(avalancheImage string) *SmartContractTest {
+	return &SmartContractTest{avalancheImage: avalancheImage}
 }
 
 func (test SmartContractTest) GetTestConfiguration() testsuite.TestConfiguration {
@@ -105,7 +111,9 @@ func (test SmartContractTest) Run(network networks.Network, testCtx testsuite.Te
 	// 1000 AVAX
 	topology.Genesis().FundXChainAddresses([]string{node1XAddr}, 1000000000000)
 
-	cChainAddrStr, err := node1AvalancheGoClient.CChainAPI().CreateAddress(node1.UserPass)
+	node1CChainApi := node1AvalancheGoClient.CChainAPI()
+
+	cChainAddrStr, err := node1CChainApi.CreateAddress(node1.UserPass)
 	if err != nil {
 		testCtx.Fatal(stacktrace.Propagate(err, "An error occurred creating a C-Chain address for node: %v", node1Id))
 	}
@@ -113,18 +121,41 @@ func (test SmartContractTest) Run(network networks.Network, testCtx testsuite.Te
 	cChainAddrBytes := common.HexToAddress(cChainAddrStr)
 	topology.Genesis().MoveBalanceToCChain(cChainAddrBytes, testconstants.TxFee)
 
-	// topology.Genesis().MoveBalanceToCChain()
+	_, privKeyHex, err := node1CChainApi.ExportKey(node1.UserPass, cChainAddrStr)
+	if err != nil {
+		testCtx.Fatal(stacktrace.Propagate(err, "An error occurred exporting the private key for the C-Chain address '%v'", cChainAddrStr))
+	}
 
+	privKeyEcdsa, err := crypto.HexToECDSA(privKeyHex)
+	if err != nil {
+		testCtx.Fatal(stacktrace.Propagate(err, "An error occurred converting the C-Chain private key hex '%v' to an ECDSA key", privKeyHex))
+	}
 
-	/*
-	ethClient := node1.GetClient().CChainEthAPI()
+	transactor := bind.NewKeyedTransactor(privKeyEcdsa)
 
-	ethClient
+	uri := fmt.Sprintf("ws://%s:%d/ext/bc/C/ws", node1.GetIPAddress(), nodeHttpPort)
+	node1EthClient, err := ethclient.Dial(uri)
+	if err != nil {
+		testCtx.Fatal(stacktrace.Propagate(err, "An error occurred getting an ethclient for URI '%v'", uri))
+	}
+	_, _, contract, err := bindings.DeployStorage(transactor, node1EthClient)
+	if err != nil {
+		testCtx.Fatal(stacktrace.Propagate(err, "An error occurred deploying the contract on the C-Chain"))
+	}
 
-	bindings.DeployStorage(, ethClient)
-	ethClient.c
-	 */
+	var valueToStore int64 = 20
+	// TODO wait for transaction to get accepted
+	_, err = contract.Store(transactor, big.NewInt(valueToStore))
+	if err != nil {
+		testCtx.Fatal(stacktrace.Propagate(err, "An error occurred storing value '%v' in the contract", valueToStore))
+	}
 
+	retrievedValue, err := contract.Retrieve(nil)
+	if err != nil {
+		testCtx.Fatal(stacktrace.Propagate(err, "An error occurred retrieving the value stored in the contract"))
+	}
+
+	logrus.Infof("Retrieved value: %v", retrievedValue)
 }
 
 func (test SmartContractTest) GetSetupTimeout() time.Duration {
