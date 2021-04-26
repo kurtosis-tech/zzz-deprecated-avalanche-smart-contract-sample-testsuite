@@ -26,7 +26,7 @@ fi
 
 # >>>>>>>> Add custom testsuite parameters here <<<<<<<<<<<<<
 custom_params_json='{
-    "avalancheImage": "avaplatform/avalanchego"
+    "avalancheImage": "avaplatform/avalanchego:latest"
 }'
 # >>>>>>>> Add custom testsuite parameters here <<<<<<<<<<<<<
 
