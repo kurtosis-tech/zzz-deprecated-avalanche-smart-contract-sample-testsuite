@@ -46,9 +46,9 @@ func (test SmartContractTest) Run(uncastedNetwork networks.Network) error {
 	if !ok {
 		return stacktrace.NewError("Couldn't cast the generic network to the appropriate type")
 	}
-
 	gethClient, transactor := network.GetFundedCChainClientAndTransactor()
 
+v	// TODO vvvvvvvvvvvvvvvvvvvvvvvv REPLACE WITH YOUR CUSTOM TEST CODE vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 	logrus.Info("Deploying HelloWorld contract...")
 	_, helloWorldDeploymentTxn, _, err := bindings.DeployHelloWorld(transactor, gethClient)
 	if err != nil {
@@ -95,6 +95,8 @@ func (test SmartContractTest) Run(uncastedNetwork networks.Network) error {
 	if valueToStore.Cmp(retrievedValue) != 0 {
 		return stacktrace.NewError("Retrieved value '%v' != stored value '%v'", retrievedValue, valueToStore)
 	}
+	// TODO ^^^^^^^^^^^^^^^^^^^^^^^^ REPLACE WITH YOUR CUSTOM TEST CODE ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 	return nil
 }
 

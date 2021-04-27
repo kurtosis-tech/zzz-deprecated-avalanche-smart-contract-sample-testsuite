@@ -40,9 +40,8 @@ Kurtosis docs are available [here](https://docs.kurtosistech.com/), and the team
 ---------------------------
 1. Install a Go IDE of your choice (we recommend [GoLand by JetBrains](https://www.jetbrains.com/go/))
 1. Open the repo directory
-1. Fix the compile errors that occur in `testsuite/testsuite_impl/smart_contract_test_.go` due to your new contract bindings, e.g.:
-    * Switching the `DeployStorage` function call for `DeployYourContractName`
-    * Replacing the example contract-specific functions with your contract's function calls
+1. Replace the section marked `TODO REPLACE WITH YOUR TEST CODE` in `testsuite/testsuite_impl/smart_contract_test_.go` using the bindings generated for your contracts
 1. Verify the testsuite still works: `scripts/build-and-run.sh all`
-1. Modify the tests and testsuite as you please
-    * The [Testsuite Customization](https://docs.kurtosistech.com/kurtosis-core/testsuite-customization) section of the docs provides a step-by-step walkthrough to customizing a testsuite
+1. Add more tests as you please
+    * The [Testsuite Customization](https://docs.kurtosistech.com/kurtosis-core/testsuite-customization) docs page provides a step-by-step walkthrough to customizing a testsuite
+    * The [Lib Documentation](https://docs.kurtosistech.com/kurtosis-libs/lib-documentation) docs page provides comprehensive documentation of all the Kurtosis components you'll encounter
