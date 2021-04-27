@@ -2,7 +2,6 @@ package smart_contract_test
 
 import (
 	"context"
-	"github.com/ava-labs/avalanchego-kurtosis/kurtosis/avalanche/libs/builder/networkbuilder"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -24,8 +23,6 @@ const (
 
 type SmartContractTest struct {
 	avalancheImage string
-	// TODO make this not a mutable variable that gets set in Setup
-	networkDefinition *networkbuilder.Network
 }
 
 func NewSmartContractTest(avalancheImage string) *SmartContractTest {
@@ -78,7 +75,6 @@ func (test SmartContractTest) Run(uncastedNetwork networks.Network, testCtx test
 
 	valueToStore := big.NewInt(20)
 	logrus.Infof("Storing value '%v'...", valueToStore)
-	// TODO wait for transaction to get accepted
 	storeValueTxn, err := contract.Store(transactor, valueToStore)
 	if err != nil {
 		testCtx.Fatal(stacktrace.Propagate(err, "An error occurred storing value '%v' in the contract", valueToStore))
@@ -107,8 +103,6 @@ func (test SmartContractTest) Run(uncastedNetwork networks.Network, testCtx test
 func waitUntilTransactionMined(validatorClient *ethclient.Client, transactionHash common.Hash) error {
 	for i := 0; i < maxNumCheckTransactionMinedRetries; i++ {
 		receipt, err := validatorClient.TransactionReceipt(context.Background(), transactionHash)
-		// TODO DEBUGGING
-		logrus.Infof("Receipt: %+v", receipt)
 		if err == nil && receipt != nil && receipt.BlockNumber != nil {
 			return nil
 		}
