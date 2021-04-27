@@ -1,6 +1,6 @@
 Example Avalanche Smart Contract Testsuite
 ==========================================
-This testsuite demonstrates using Kurtosis to test functionality of a smart contract deployed on the Avalanche network C-Chain. 
+This testsuite demonstrates using [Kurtosis](https://www.kurtosistech.com/) to test functionality of a smart contract deployed on the Avalanche network C-Chain. 
 
 Kurtosis docs are available [here](https://docs.kurtosistech.com/), and the team is available on [Discord](https://discord.gg/6Jjp9c89z9).
 
@@ -19,7 +19,8 @@ Kurtosis docs are available [here](https://docs.kurtosistech.com/), and the team
 ---------------------
 1. Install `git` on your machine if not done already
 1. Install `docker` on your machine if not done already
-1. Run `scripts/build-and-run.sh all`
+1. Create a Kurtosis account [here](https://www.kurtosistech.com/sign-up)
+1. Run `scripts/build-and-run.sh all`, and when prompted link your device to your Kurtosis account
 
 3 - Upload your smart contracts and regenerate the Go bindings
 --------------------------------------------------------------
