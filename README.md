@@ -39,6 +39,7 @@ Kurtosis docs are available [here](https://docs.kurtosistech.com/), and the team
 
 4 - Customize the testsuite
 ---------------------------
+1. Install `go` on your machine
 1. Install a Go IDE of your choice (we recommend [GoLand by JetBrains](https://www.jetbrains.com/go/))
 1. Open the repo directory
 1. Replace the section marked `TODO REPLACE WITH YOUR TEST CODE` in `testsuite/testsuite_impl/smart_contract_test_.go` using the bindings generated for your contracts
