@@ -8,6 +8,7 @@ This testsuite demonstrates using Kurtosis to test functionality of a smart cont
 1. Run `scripts/build-and-run.sh all`
 
 ### Uploading a new smart contract and regenerating the Go bindings
+1. Install `go` on your machine if not done already
 1. Install `solc` v0.7 on your machine (NOTE: **not** v0.8, which is the latest! This requirement is because the AvalancheGo client depends on an old version of `go-ethereum`):
     1. Install the command:
         * On Mac, this can be done via `brew tap ethereum/ethereum && brew install solidity@7`
