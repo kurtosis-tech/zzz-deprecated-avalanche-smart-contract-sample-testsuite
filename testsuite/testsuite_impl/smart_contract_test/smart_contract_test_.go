@@ -48,7 +48,7 @@ func (test SmartContractTest) Run(uncastedNetwork networks.Network) error {
 	}
 	gethClient, transactor := network.GetFundedCChainClientAndTransactor()
 
-v	// TODO vvvvvvvvvvvvvvvvvvvvvvvv REPLACE WITH YOUR CUSTOM TEST CODE vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+	// TODO vvvvvvvvvvvvvvvvvvvvvvvv REPLACE WITH YOUR CUSTOM TEST CODE vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 	logrus.Info("Deploying HelloWorld contract...")
 	_, helloWorldDeploymentTxn, _, err := bindings.DeployHelloWorld(transactor, gethClient)
 	if err != nil {
