@@ -14,7 +14,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/kurtosis-tech/kurtosis-libs/golang/lib/networks"
 	"github.com/kurtosis-tech/kurtosis-libs/golang/lib/services"
-	"github.com/kurtosis-tech/kurtosis-libs/golang/lib/testsuite"
 	"github.com/palantir/stacktrace"
 	"github.com/sirupsen/logrus"
 	"strings"
@@ -37,16 +36,15 @@ const (
 type SmartContractAvalancheNetwork struct {
 	avalancheImage string
 
+	avalancheNetwork *networksavalanche.AvalancheNetwork
+
 	networkConfiguration *networkbuilder.Network
 
-	// TODO These variables really aren't great - they're set by initializers that the user has to know to call
-	//  Ideally we'd like this to be a single call to set everything up in the Test.Setup phase, but unfortunately
-	//  that's not currently possible because creating a Topology requires a TestContext, which only exists in Test.Run
-	avalancheNetwork *networksavalanche.AvalancheNetwork
-	runPhaseInitializationComplete bool
+	transactor *bind.TransactOpts
+	gethClient *ethclient.Client
 }
 
-func NewSmartContractAvalancheNetwork(avalancheImage string) *SmartContractAvalancheNetwork {
+func NewSmartContractAvalancheNetwork(avalancheImage string, networkCtx *networks.NetworkContext) *SmartContractAvalancheNetwork {
 	networkConfiguration := networkbuilder.New().
 		Image(avalancheImage).
 		SnowSize(3, 3)
@@ -69,20 +67,20 @@ func NewSmartContractAvalancheNetwork(avalancheImage string) *SmartContractAvala
 
 	result := &SmartContractAvalancheNetwork{
 		avalancheImage:                 avalancheImage,
+		avalancheNetwork: networksavalanche.NewAvalancheNetwork(networkCtx, avalancheImage),
 		networkConfiguration:           networkConfiguration,
-		avalancheNetwork:               nil, // Sadly this is stateful and must start as nil
-		runPhaseInitializationComplete: false,
+		transactor: nil,
+		gethClient: nil,
 	}
 	return result
 }
 
-
-func (network *SmartContractAvalancheNetwork) ExecuteSetupPhaseInitialization(networkCtx *networks.NetworkContext) error {
-	if network.avalancheNetwork != nil {
+// Prepares an Avalanche network for smart contract deployment by starting it, creating a C-Chain address, funding it, etc.
+// This function is expected to be used in the Test.Setup phase, with GetTransactor and GetGethClient used in Test.Run phase
+func (network *SmartContractAvalancheNetwork) SetupAvalancheNetwork() error {
+	if network.transactor != nil || network.gethClient != nil {
 		return stacktrace.NewError("Avalanche network already started")
 	}
-
-	avalancheNetwork := networksavalanche.NewAvalancheNetwork(networkCtx, network.avalancheImage)
 
 	logrus.Info("Launching bootstrap nodes...")
 	bootstrapNodeCheckers := map[string]*services.DefaultAvailabilityChecker{}
@@ -94,7 +92,7 @@ func (network *SmartContractAvalancheNetwork) ExecuteSetupPhaseInitialization(ne
 		if !found {
 			return stacktrace.NewError("Expected a node config for ID '%v', but none was found", id)
 		}
-		_, checker, err := avalancheNetwork.CreateNodeNoCheck(network.networkConfiguration, nodeConfig)
+		_, checker, err := network.avalancheNetwork.CreateNodeNoCheck(network.networkConfiguration, nodeConfig)
 		if err != nil {
 			return stacktrace.Propagate(err, "An error occurred creating bootstrapper node with ID '%v'", id)
 		}
@@ -116,7 +114,7 @@ func (network *SmartContractAvalancheNetwork) ExecuteSetupPhaseInitialization(ne
 		if nodeConfig.IsBootstrapNode() {
 			continue
 		}
-		_, checker, err := avalancheNetwork.CreateNodeNoCheck(network.networkConfiguration, nodeConfig)
+		_, checker, err := network.avalancheNetwork.CreateNodeNoCheck(network.networkConfiguration, nodeConfig)
 		if err != nil {
 			return stacktrace.Propagate(err, "An error occurred creating new node")
 		}
@@ -132,21 +130,7 @@ func (network *SmartContractAvalancheNetwork) ExecuteSetupPhaseInitialization(ne
 	}
 	logrus.Info("Non-bootstrap nodes available")
 
-	network.avalancheNetwork = avalancheNetwork
-
-	return nil
-}
-
-// TODO This currently needs a TestContext object because we need a Topology object to deploy the contract
-//  This is bad because it means that this function can only be used in Test.Run
-//  The Topology object doesn't *really* need a TestContext object though, so as soon as that requirement
-//  the Testcontext the
-func (network *SmartContractAvalancheNetwork) ExecuteRunPhaseInitialization(testCtx testsuite.TestContext) (*bind.TransactOpts, *ethclient.Client, error) {
-	if network.runPhaseInitializationComplete {
-		return nil, nil, stacktrace.NewError("Run phase initialization already executed")
-	}
-
-	topo := topology.New(network.avalancheNetwork, &testCtx)
+	topo := topology.New(network.avalancheNetwork)
 
 	firstValidatorId := ""
 	for _, node := range network.networkConfiguration.Nodes {
@@ -173,12 +157,12 @@ func (network *SmartContractAvalancheNetwork) ExecuteRunPhaseInitialization(test
 	}
 	xChainPrivateKey, err := firstNodeAvalancheGoClient.XChainAPI().ExportKey(firstNode.UserPass, firstNode.XAddress)
 	if err != nil {
-		return nil, nil, stacktrace.Propagate(err, "An error occurred exporting the node's private key from the X-Chain")
+		return stacktrace.Propagate(err, "An error occurred exporting the node's private key from the X-Chain")
 	}
 	logrus.Debugf("X-Chain private key: %v", xChainPrivateKey)
 	cChainAddrStr, err := firstNodeAvalancheGoClient.CChainAPI().ImportKey(firstNode.UserPass, xChainPrivateKey)
 	if err != nil {
-		return nil, nil, stacktrace.Propagate(err, "An error occurred importing the node's private key to the C-Chain")
+		return stacktrace.Propagate(err, "An error occurred importing the node's private key to the C-Chain")
 	}
 	logrus.Infof("C-Chain address '%v' created", cChainAddrStr)
 
@@ -191,13 +175,13 @@ func (network *SmartContractAvalancheNetwork) ExecuteRunPhaseInitialization(test
 	logrus.Info("Creating keyed transactor...")
 	_, privKeyHexWithLead0x, err := firstNodeCChainApi.ExportKey(firstNode.UserPass, cChainAddrStr)
 	if err != nil {
-		return nil, nil, stacktrace.Propagate(err, "An error occurred exporting the private key for the C-Chain address '%v'", cChainAddrStr)
+		return stacktrace.Propagate(err, "An error occurred exporting the private key for the C-Chain address '%v'", cChainAddrStr)
 	}
 	privKeyHex := strings.Replace(privKeyHexWithLead0x, hexStrIndicatorLeader, "", 1)
 	logrus.Infof("C-Chain private key hex: %v", privKeyHex)
 	privKeyEcdsa, err := crypto.HexToECDSA(privKeyHex)
 	if err != nil {
-		return nil, nil, stacktrace.Propagate(err, "An error occurred converting the C-Chain private key hex '%v' to an ECDSA key", privKeyHex)
+		return stacktrace.Propagate(err, "An error occurred converting the C-Chain private key hex '%v' to an ECDSA key", privKeyHex)
 	}
 	transactor := bind.NewKeyedTransactor(privKeyEcdsa)
 	logrus.Info("Keyed transactor created")
@@ -205,14 +189,22 @@ func (network *SmartContractAvalancheNetwork) ExecuteRunPhaseInitialization(test
 
 	logrus.Info("Creating Geth client...")
 	uri := fmt.Sprintf("ws://%s:%d/ext/bc/C/ws", firstNode.GetIPAddress(), nodeHttpPort)
-	firstNodeEthClient, err := ethclient.Dial(uri)
+	gethClient, err := ethclient.Dial(uri)
 	if err != nil {
-		return nil, nil, stacktrace.Propagate(err, "An error occurred getting an ethclient for URI '%v'", uri)
+		return stacktrace.Propagate(err, "An error occurred getting an ethclient for URI '%v'", uri)
 	}
 	logrus.Info("Geth client created")
 
-	network.runPhaseInitializationComplete = true
-	return transactor, firstNodeEthClient, nil
+	network.transactor = transactor
+	network.gethClient = gethClient
+
+	return nil
+}
+
+// Returns a Geth client for interacting with the Avalanche network's C-Chain, as well as a transactor required for making
+//  requests using the Geth client
+func (network SmartContractAvalancheNetwork) GetFundedCChainClientAndTransactor() (*ethclient.Client, *bind.TransactOpts) {
+	return network.gethClient, network.transactor
 }
 
 func getBootstrapNodeId(idx int) string {

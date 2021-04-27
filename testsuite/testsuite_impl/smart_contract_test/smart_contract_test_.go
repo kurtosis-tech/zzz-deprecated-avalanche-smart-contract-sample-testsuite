@@ -8,7 +8,6 @@ import (
 	"github.com/kurtosis-tech/avalanche-smart-contract-sample-testsuite/smart_contracts/bindings"
 	"github.com/kurtosis-tech/avalanche-smart-contract-sample-testsuite/testsuite/networks_impl"
 	"github.com/kurtosis-tech/kurtosis-libs/golang/lib/networks"
-	"github.com/kurtosis-tech/kurtosis-libs/golang/lib/services"
 	"github.com/kurtosis-tech/kurtosis-libs/golang/lib/testsuite"
 	"github.com/palantir/stacktrace"
 	"github.com/sirupsen/logrus"
@@ -29,47 +28,34 @@ func NewSmartContractTest(avalancheImage string) *SmartContractTest {
 	return &SmartContractTest{avalancheImage: avalancheImage}
 }
 
-func (test SmartContractTest) GetTestConfiguration() testsuite.TestConfiguration {
-	return testsuite.TestConfiguration{
-		IsPartitioningEnabled: false,
-		FilesArtifactUrls:     map[services.FilesArtifactID]string{},
-	}
-}
-
-func (test SmartContractTest) GetSetupTimeout() time.Duration {
-	return 60 * time.Second
-}
-
-func (test SmartContractTest) GetExecutionTimeout() time.Duration {
-	return 60 * time.Second
+func (test SmartContractTest) Configure(builder *testsuite.TestConfigurationBuilder) {
+	builder.WithSetupTimeoutSeconds(60).WithRunTimeoutSeconds(60)
 }
 
 func (test *SmartContractTest) Setup(networkCtx *networks.NetworkContext) (networks.Network, error) {
-	network := networks_impl.NewSmartContractAvalancheNetwork(test.avalancheImage)
-	if err := network.ExecuteSetupPhaseInitialization(networkCtx); err != nil {
-		return nil, stacktrace.Propagate(err, "An error occurred executing the setup phase initialization")
+	network := networks_impl.NewSmartContractAvalancheNetwork(test.avalancheImage, networkCtx)
+	if err := network.SetupAvalancheNetwork(); err != nil {
+		return nil, stacktrace.Propagate(err, "An error occurred setting up the Avalanche network")
 	}
 	return network, nil
 }
 
-func (test SmartContractTest) Run(uncastedNetwork networks.Network, testCtx testsuite.TestContext) {
+func (test SmartContractTest) Run(uncastedNetwork networks.Network) error {
 	// Necessary because Go doesn't have generics
 	network, ok := uncastedNetwork.(*networks_impl.SmartContractAvalancheNetwork)
 	if !ok {
-		testCtx.Fatal(stacktrace.NewError("Couldn't cast the generic network to the appropriate type"))
+		return stacktrace.NewError("Couldn't cast the generic network to the appropriate type")
 	}
-	transactor, gethClient, err := network.ExecuteRunPhaseInitialization(testCtx)
-	if err != nil {
-		testCtx.Fatal(stacktrace.Propagate(err, "An error occurred executing the run phase initialization"))
-	}
+
+	gethClient, transactor := network.GetFundedCChainClientAndTransactor()
 
 	logrus.Info("Deploying contract...")
 	_, contractDeploymentTxn, contract, err := bindings.DeployStorage(transactor, gethClient)
 	if err != nil {
-		testCtx.Fatal(stacktrace.Propagate(err, "An error occurred deploying the contract on the C-Chain"))
+		return stacktrace.Propagate(err, "An error occurred deploying the contract on the C-Chain")
 	}
 	if err := waitUntilTransactionMined(gethClient, contractDeploymentTxn.Hash()); err != nil {
-		testCtx.Fatal(stacktrace.Propagate(err, "An error occurred waiting for the contract deployment transaction to be mined"))
+		return stacktrace.Propagate(err, "An error occurred waiting for the contract deployment transaction to be mined")
 	}
 	logrus.Info("Contract deployed")
 
@@ -77,10 +63,10 @@ func (test SmartContractTest) Run(uncastedNetwork networks.Network, testCtx test
 	logrus.Infof("Storing value '%v'...", valueToStore)
 	storeValueTxn, err := contract.Store(transactor, valueToStore)
 	if err != nil {
-		testCtx.Fatal(stacktrace.Propagate(err, "An error occurred storing value '%v' in the contract", valueToStore))
+		return stacktrace.Propagate(err, "An error occurred storing value '%v' in the contract", valueToStore)
 	}
 	if err := waitUntilTransactionMined(gethClient, storeValueTxn.Hash()); err != nil {
-		testCtx.Fatal(stacktrace.Propagate(err, "An error occurred waiting for the value-storing transaction to be mined"))
+		return stacktrace.Propagate(err, "An error occurred waiting for the value-storing transaction to be mined")
 	}
 	logrus.Info("Value stored")
 
@@ -90,11 +76,14 @@ func (test SmartContractTest) Run(uncastedNetwork networks.Network, testCtx test
 	logrus.Info("Retrieving value from contract...")
 	retrievedValue, err := contract.Retrieve(&bind.CallOpts{})
 	if err != nil {
-		testCtx.Fatal(stacktrace.Propagate(err, "An error occurred retrieving the value stored in the contract"))
+		return stacktrace.Propagate(err, "An error occurred retrieving the value stored in the contract")
 	}
 	logrus.Infof("Retrieved value: %v", retrievedValue)
 
-	testCtx.AssertTrue(valueToStore.Cmp(retrievedValue) == 0, stacktrace.NewError("Retrieved value '%v' != stored value '%v'", retrievedValue, valueToStore))
+	if valueToStore.Cmp(retrievedValue) != 0 {
+		return stacktrace.NewError("Retrieved value '%v' != stored value '%v'", retrievedValue, valueToStore)
+	}
+	return nil
 }
 
 
