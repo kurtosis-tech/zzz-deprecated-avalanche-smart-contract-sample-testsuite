@@ -49,32 +49,44 @@ func (test SmartContractTest) Run(uncastedNetwork networks.Network) error {
 
 	gethClient, transactor := network.GetFundedCChainClientAndTransactor()
 
-	logrus.Info("Deploying contract...")
-	_, contractDeploymentTxn, contract, err := bindings.DeployStorage(transactor, gethClient)
+	logrus.Info("Deploying HelloWorld contract...")
+	_, helloWorldDeploymentTxn, _, err := bindings.DeployHelloWorld(transactor, gethClient)
 	if err != nil {
-		return stacktrace.Propagate(err, "An error occurred deploying the contract on the C-Chain")
+		return stacktrace.Propagate(err, "An error occurred deploying the HelloWorld contract on the C-Chain")
 	}
-	if err := waitUntilTransactionMined(gethClient, contractDeploymentTxn.Hash()); err != nil {
-		return stacktrace.Propagate(err, "An error occurred waiting for the contract deployment transaction to be mined")
+	if err := waitUntilTransactionMined(gethClient, helloWorldDeploymentTxn.Hash()); err != nil {
+		return stacktrace.Propagate(err, "An error occurred waiting for the HelloWorld contract deployment transaction to be mined")
 	}
-	logrus.Info("Contract deployed")
+	logrus.Info("HelloWorld contract deployed")
+
+	logrus.Info("Deploying SimpleStorage contract...")
+	_, storageDeploymentTxn, storageContract, err := bindings.DeploySimpleStorage(transactor, gethClient)
+	if err != nil {
+		return stacktrace.Propagate(err, "An error occurred deploying the SimpleStorage contract on the C-Chain")
+	}
+	if err := waitUntilTransactionMined(gethClient, storageDeploymentTxn.Hash()); err != nil {
+		return stacktrace.Propagate(err, "An error occurred waiting for the SimpleStorage contract deployment transaction to be mined")
+	}
+	// NOTE: It's not clear why we need to sleep here - the transaction being mined should be sufficient
+	time.Sleep(5 * time.Second)
+	logrus.Info("SimpleStorage contract deployed")
 
 	valueToStore := big.NewInt(20)
 	logrus.Infof("Storing value '%v'...", valueToStore)
-	storeValueTxn, err := contract.Store(transactor, valueToStore)
+	storeValueTxn, err := storageContract.Set(transactor, valueToStore)
 	if err != nil {
 		return stacktrace.Propagate(err, "An error occurred storing value '%v' in the contract", valueToStore)
 	}
 	if err := waitUntilTransactionMined(gethClient, storeValueTxn.Hash()); err != nil {
 		return stacktrace.Propagate(err, "An error occurred waiting for the value-storing transaction to be mined")
 	}
-	logrus.Info("Value stored")
-
 	// NOTE: It's not clear why we need to sleep here - the transaction being mined should be sufficient
 	time.Sleep(5 * time.Second)
+	logrus.Info("Value stored")
+
 
 	logrus.Info("Retrieving value from contract...")
-	retrievedValue, err := contract.Retrieve(&bind.CallOpts{})
+	retrievedValue, err := storageContract.Get(&bind.CallOpts{})
 	if err != nil {
 		return stacktrace.Propagate(err, "An error occurred retrieving the value stored in the contract")
 	}

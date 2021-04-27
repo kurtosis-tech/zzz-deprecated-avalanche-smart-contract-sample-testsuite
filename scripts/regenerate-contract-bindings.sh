@@ -5,8 +5,9 @@ root_dirpath="$(dirname "${script_dirpath}")"
 # Constants
 SMART_CONTRACTS_DIRNAME="smart_contracts"
 BINDINGS_DIRNAME="bindings"
-CONTRACT_RELATIVE_FILEPATH="${SMART_CONTRACTS_DIRNAME}/contract.sol"   # Relative to repo root
-BINDINGS_CODE_RELATIVE_FILEPATH="${SMART_CONTRACTS_DIRNAME}/${BINDINGS_DIRNAME}/bindings.go"  # Relative to repo root
+SOLIDITY_DIRNAME="solidity"
+GO_FILE_EXT=".go"
+SOLIDITY_FILE_EXT=".sol"
 REQUIRED_SOLIDITY_VERSION="0.7" # This is fixed to 0.7 because the Avalanche Kurtosis bindings use ethereum-go 0.7 and newer versions break
 
 # Main code
@@ -31,10 +32,18 @@ case "${solidity_version}" in
         ;;
 esac
 
-contract_filepath="${root_dirpath}/${CONTRACT_RELATIVE_FILEPATH}"
-bindings_filepath="${root_dirpath}/${BINDINGS_CODE_RELATIVE_FILEPATH}"
-if ! "${abigen_binary_filepath}" --sol "${contract_filepath}" --pkg "${BINDINGS_DIRNAME}" --out "${bindings_filepath}"; then
-    echo "Error: Could not generate bindings for Solidity contract at '${contract_filepath}'" >&2
+bindings_dirpath="${root_dirpath}/${SMART_CONTRACTS_DIRNAME}/${BINDINGS_DIRNAME}"
+if ! find "${bindings_dirpath}" -type f -name "*${GO_FILE_EXT}" -delete; then
+    echo "Error: Could not remove existing Go files in bindings directory '${bindings_dirpath}'" >&2
     exit 1
 fi
-echo "Successfully generated bindings for Solidity contract to file '${bindings_filepath}'"
+for contract_filepath in $(find "${root_dirpath}/${SMART_CONTRACTS_DIRNAME}/${SOLIDITY_DIRNAME}" -type f -name "*${SOLIDITY_FILE_EXT}"); do
+    contract_filename="$(basename "${contract_filepath}")"
+    bindings_filename="${contract_filename%%${SOLIDITY_FILE_EXT}}${GO_FILE_EXT}"
+    output_filepath="${bindings_dirpath}/${bindings_filename}"
+    if ! "${abigen_binary_filepath}" --sol "${contract_filepath}" --pkg "${BINDINGS_DIRNAME}" --out "${output_filepath}"; then
+        echo "Error: Could not generate bindings for Solidity contract at '${contract_filepath}'" >&2
+        exit 1
+    fi
+    echo "Successfully generated bindings for Solidity contract at '${contract_filepath}' to file '${output_filepath}'"
+done
