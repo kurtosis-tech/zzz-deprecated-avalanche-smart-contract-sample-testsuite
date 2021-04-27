@@ -9,8 +9,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/kurtosis-tech/kurtosis-libs/golang/lib/execution"
 	"github.com/kurtosis-tech/avalanche-smart-contract-sample-testsuite/testsuite/execution_impl"
+	"github.com/kurtosis-tech/kurtosis-libs/golang/lib/execution"
 	"github.com/sirupsen/logrus"
 	"os"
 )
@@ -41,9 +41,7 @@ func main() {
 
 	flag.Parse()
 
-	// >>>>>>>>>>>>>>>>>>> REPLACE WITH YOUR OWN CONFIGURATOR <<<<<<<<<<<<<<<<<<<<<<<<
-	configurator := execution_impl.NewExampleTestsuiteConfigurator()
-	// >>>>>>>>>>>>>>>>>>> REPLACE WITH YOUR OWN CONFIGURATOR <<<<<<<<<<<<<<<<<<<<<<<<
+	configurator := execution_impl.NewSmartContractTestsuiteConfigurator()
 
 	suiteExecutor := execution.NewTestSuiteExecutor(*kurtosisApiSocketArg, *logLevelArg, *customParamsJsonArg, configurator)
 	if err := suiteExecutor.Run(context.Background()); err != nil {

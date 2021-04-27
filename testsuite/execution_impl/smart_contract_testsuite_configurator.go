@@ -7,20 +7,20 @@ package execution_impl
 
 import (
 	"encoding/json"
-	"github.com/kurtosis-tech/kurtosis-libs/golang/lib/testsuite"
 	"github.com/kurtosis-tech/avalanche-smart-contract-sample-testsuite/testsuite/testsuite_impl"
+	"github.com/kurtosis-tech/kurtosis-libs/golang/lib/testsuite"
 	"github.com/palantir/stacktrace"
 	"github.com/sirupsen/logrus"
 	"strings"
 )
 
-type ExampleTestsuiteConfigurator struct {}
+type SmartContractTestsuiteConfigurator struct {}
 
-func NewExampleTestsuiteConfigurator() *ExampleTestsuiteConfigurator {
-	return &ExampleTestsuiteConfigurator{}
+func NewSmartContractTestsuiteConfigurator() *SmartContractTestsuiteConfigurator {
+	return &SmartContractTestsuiteConfigurator{}
 }
 
-func (t ExampleTestsuiteConfigurator) SetLogLevel(logLevelStr string) error {
+func (t SmartContractTestsuiteConfigurator) SetLogLevel(logLevelStr string) error {
 	level, err := logrus.ParseLevel(logLevelStr)
 	if err != nil {
 		return stacktrace.Propagate(err, "An error occurred parsing loglevel string '%v'", logLevelStr)
@@ -33,7 +33,7 @@ func (t ExampleTestsuiteConfigurator) SetLogLevel(logLevelStr string) error {
 	return nil
 }
 
-func (t ExampleTestsuiteConfigurator) ParseParamsAndCreateSuite(paramsJsonStr string) (testsuite.TestSuite, error) {
+func (t SmartContractTestsuiteConfigurator) ParseParamsAndCreateSuite(paramsJsonStr string) (testsuite.TestSuite, error) {
 	paramsJsonBytes := []byte(paramsJsonStr)
 	var args SmartContractTestsuiteArgs
 	if err := json.Unmarshal(paramsJsonBytes, &args); err != nil {
