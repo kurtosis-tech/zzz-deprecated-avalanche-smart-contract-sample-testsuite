@@ -29,7 +29,7 @@ func NewSmartContractTest(avalancheImage string) *SmartContractTest {
 }
 
 func (test SmartContractTest) Configure(builder *testsuite.TestConfigurationBuilder) {
-	builder.WithSetupTimeoutSeconds(60).WithRunTimeoutSeconds(60)
+	builder.WithSetupTimeoutSeconds(180).WithRunTimeoutSeconds(180)
 }
 
 func (test *SmartContractTest) Setup(networkCtx *networks.NetworkContext) (networks.Network, error) {
@@ -83,7 +83,6 @@ func (test SmartContractTest) Run(uncastedNetwork networks.Network) error {
 	// NOTE: It's not clear why we need to sleep here - the transaction being mined should be sufficient
 	time.Sleep(5 * time.Second)
 	logrus.Info("Value stored")
-
 
 	logrus.Info("Retrieving value from contract...")
 	retrievedValue, err := storageContract.Get(&bind.CallOpts{})
